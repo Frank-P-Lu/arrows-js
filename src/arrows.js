@@ -14,6 +14,7 @@ const DEFAULTS = {
   fromAnchor: 'auto',         // top, right, bottom, left, center, auto
   toAnchor: 'auto',
   animationDuration: 300,     // ms for draw-in animation
+  endGap: 5,                  // Gap in pixels before arrow touches target
 };
 
 // Global SVG container (singleton for performance)
@@ -67,7 +68,7 @@ function getArrowMarker(color, size) {
   marker.setAttribute('id', markerId);
   marker.setAttribute('markerWidth', size);
   marker.setAttribute('markerHeight', size);
-  marker.setAttribute('refX', size);
+  marker.setAttribute('refX', size - 0.5);  // Position just before tip to prevent line overshoot
   marker.setAttribute('refY', size / 2);
   marker.setAttribute('orient', 'auto');
   marker.setAttribute('markerUnits', 'strokeWidth');
@@ -160,6 +161,7 @@ export class Arrow {
     this.headSize = options.headSize || DEFAULTS.headSize;
     this.curvature = options.curvature ?? DEFAULTS.curvature;
     this.animationDuration = options.animationDuration ?? DEFAULTS.animationDuration;
+    this.endGap = options.endGap ?? DEFAULTS.endGap;
 
     // SVG elements
     this.pathElement = null;
@@ -241,7 +243,8 @@ export class Arrow {
    * Handle scroll events
    */
   _onScroll() {
-    this._scheduleUpdate();
+    // Update immediately on scroll to prevent arrows from appearing wonky
+    this._recalculatePath();
   }
 
   /**
@@ -286,15 +289,24 @@ export class Arrow {
    * Calculate SVG path
    */
   _calculatePath(start, end) {
-    if (this.curvature === 0) {
-      // Straight line
-      return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
-    }
-
-    // Curved line using cubic Bezier
+    // Calculate direction and distance
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Shorten the path at the end to create a gap
+    const gapRatio = Math.max(0, (distance - this.endGap) / distance);
+    const adjustedEnd = {
+      x: start.x + dx * gapRatio,
+      y: start.y + dy * gapRatio
+    };
+
+    if (this.curvature === 0) {
+      // Straight line
+      return `M ${start.x} ${start.y} L ${adjustedEnd.x} ${adjustedEnd.y}`;
+    }
+
+    // Curved line using cubic Bezier
     const curveAmount = distance * this.curvature;
 
     // Determine curve direction based on anchors
@@ -304,17 +316,17 @@ export class Arrow {
     if (Math.abs(dx) > Math.abs(dy)) {
       cp1x = start.x + curveAmount;
       cp1y = start.y;
-      cp2x = end.x - curveAmount;
-      cp2y = end.y;
+      cp2x = adjustedEnd.x - curveAmount * gapRatio;
+      cp2y = adjustedEnd.y;
     } else {
       // Vertical curve
       cp1x = start.x;
       cp1y = start.y + curveAmount;
-      cp2x = end.x;
-      cp2y = end.y - curveAmount;
+      cp2x = adjustedEnd.x;
+      cp2y = adjustedEnd.y - curveAmount * gapRatio;
     }
 
-    return `M ${start.x} ${start.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`;
+    return `M ${start.x} ${start.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${adjustedEnd.x} ${adjustedEnd.y}`;
   }
 
   /**
