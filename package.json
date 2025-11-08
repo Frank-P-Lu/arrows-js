@@ -1,0 +1,24 @@
+{
+  "name": "arrows-js",
+  "version": "0.1.0",
+  "description": "Lightweight, SSR-friendly arrow drawing library for connecting DOM elements",
+  "main": "src/arrows.js",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "test": "echo \"Tests coming soon\" && exit 0"
+  },
+  "keywords": [
+    "arrows",
+    "svg",
+    "connections",
+    "leader-line",
+    "diagram"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Frank-P-Lu/arrows-js.git"
+  }
+}
